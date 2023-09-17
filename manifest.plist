@@ -2,32 +2,30 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>items</key>
-  <array>
-    <dict>
-      <key>assets</key>
-      <array>
-        <dict>
-          <key>kind</key>
-          <string>software-package</string>
-          <key>url</key>
-          <string>http://yuki-1018.net/Payload.ipa</string>
-        </dict>
-      </array>
-      <key>metadata</key>
-      <dict>
-        <key>bundle-identifier</key>
-        <string>com.example.test</string>
-        <key>bundle-version</key>
-        <string>1.0.0</string>
-        <key>kind</key>
-        <string>software</string>
-        <key>subtitle</key>
-        <string>Company Name</string>
-        <key>title</key>
-        <string>AppName</string>
-      </dict>
-    </dict>
-  </array>
+        <key>items</key>
+        <array>
+                <dict>
+                        <key>assets</key>
+                        <array>
+                                <dict>
+                                        <key>kind</key>
+                                        <string>software-package</string>
+                                        <key>url</key>
+                                        <string>http://www.yuki-1018.net/Payload.ipa</string>
+                                </dict>
+                        </array>
+                        <key>metadata</key>
+                        <dict>
+                                <key>bundle-identifier</key>
+                                <string>com.name.name</string>
+                                <key>bundle-version</key>
+                                <string>1.0</string>
+                                <key>kind</key>
+                                <string>software</string>
+                                <key>title</key>
+                                <string>Name</string>
+                        </dict>
+                </dict>
+        </array>
 </dict>
 </plist>
