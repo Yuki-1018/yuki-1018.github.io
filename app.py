@@ -12,8 +12,8 @@ from linebot.models import (
 
 app = Flask(__name__)
 
-line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
-handler = WebhookHandler('YOUR_CHANNEL_SECRET')
+line_bot_api = LineBotApi('kTfN4wT4SSQoOgAFETCcJ4j5G0tncWYBCpkj/UysXIYfhqChAOQ0c58xFmlquZs9SQ8pk54Yv/2HOzuhpEFSM9BN0P6Wc9S1xfzTJOSNf6zHtgO/6mEfhBv6gUKwypdzHrkxAtEZk5V95BfJZqySbgdB04t89/1O/w1cDnyilFU=')
+handler = WebhookHandler('U8f10d5439785fedc7ba6681c26a738f2')
 
 lesson = {
     '月曜日の時間割':'月曜日は\n1:こくご\n2:たいいく\n3:さんすう\nです。',
