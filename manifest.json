@@ -1,0 +1,20 @@
+{
+  "name": "LINE Tools",
+  "short_name": "LINE Tools",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "icons": [
+      {
+          "src": "./a.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any maskable" // マスク可能なアイコン（透過部分が白背景にならず、アイコンですべて埋まるようにトリミングされる）
+      },
+      {
+          "src": "./b.png",
+          "sizes": "512x512",
+          "type": "image/png",
+          "purpose": "any maskable"
+      }
+  ]
+}
