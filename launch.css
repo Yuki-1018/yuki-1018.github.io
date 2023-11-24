@@ -1,0 +1,93 @@
+.fancy {
+  line-height: 0.5;
+  text-align: center;
+}
+.fancy span {
+  display: inline-block;
+  position: relative;  
+}
+.fancy span:before,
+.fancy span:after {
+  content: "";
+  position: absolute;
+  height: 5px;
+  border-bottom: 1px solid #000;
+  border-top: 1px solid #000;
+  top: 0;
+  width: 30vw;
+}
+
+.fancy span:before {
+  right: 100%;
+  margin-right: 15px;
+}
+.fancy span:after {
+  left: 100%;
+  margin-left: 15px;
+}
+
+h1{
+  color:white;
+  text-align: center;
+  font-size: 50px;
+  font-weight: bold;
+}
+
+
+
+span{
+  color:white;
+  margin-top: 25px;
+}
+
+button{
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+   /*this will calculate what 50% of the element width is and will move it across the X-axis. The negative value ensures it moves to the left*/
+    background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    margin-top: 25px;
+}
+
+#quoteDisplay{
+  color:white;
+  text-align: center;
+  margin-top: 25px;
+
+  font-size: 3em;
+}
+
+
+body{
+  background-color:#fff;
+  color:#000!important;
+    text-align:center;
+  padding-top:10%;
+}
+
+body *{
+  background-color:#fff;
+  color:#000!important;
+  font-family:arial;
+  
+}
+
+.btn{
+  text-align:center;
+  background:red;
+  padding:20px 40px;
+  display:inline-block;
+  margin-top:50px;
+  color:#fff!important;
+  font-size:30px;
+  text-decoration:none;
+}
