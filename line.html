@@ -7,7 +7,58 @@
 <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  ただいまメンテナンス中です。(by 美馬裕樹)
+<div class="banner">
+  <img src="https://i.imgur.com/FD1UmST.png" class="banner-icon" style="height:38px;display:inline-block;vertical-align:middle;" />
+  <div class="content">
+    Install this webapp on your iPhone: tap <img src="https://i.stack.imgur.com/JCZNV.png" class="text-icon" /> and then Add to homescreen 
+  </div>
+  <div class="arrow">
+  </div>
+  <style>
+    body{
+      font-family:system-ui;
+    }
+    .banner {
+  width:400px;
+  height:auto;
+  background-color: #eaeaea;
+  color: #000000;
+  border-radius:10px;
+  position:fixed;
+  bottom:30px;
+  left: calc(50% - 200px);
+  padding: 1rem;
+  box-shadow: 0 5px #dadada;
+  z-index:100;
+}
+
+
+
+.arrow{
+  width:50px;
+  height:50px;
+  background-color: #eaeaea;
+  transform: rotate(45deg);
+  position:absolute;
+  bottom: -25px;
+  left: calc(50% - 25px);
+  z-index:-1;
+}
+
+
+
+.content{
+  display:inline-block;
+  width:358px;
+  vertical-align:middle;
+}
+.text-icon {
+  width:14px;
+  vertical-align:bottom;
+  margin-left:2px;
+  margin-right:2px;
+}
+  </style>
 <!-- partial:index.partial.html 
   まず起動する前にLINEアプリで実行したいトークを開いてください。
 <div>
