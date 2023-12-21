@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+
+<style id="webmakerstyle">
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
+}
+
+.container {
+    text-align: center;
+    cursor: pointer;
+}
+
+#numberDisplay {
+    font-size: 7em;
+    margin: 50px;
+    padding: 50px;
+    border: 2px solid #333;
+    background-color: #fff;
+    width: 300px;
+    height: 300px;
+    line-height: 300px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.history-container {
+    margin-top: 20px;
+}
+
+.history-item {
+    display: inline-block;
+    font-size: 1.5em;
+    margin-right: 10px;
+}
+
+</style>
+</head>
+<body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container" onclick="toggleRoulette()">
+        <h1>Bingo Game</h1>
+        <div id="numberDisplay">?</div>
+    </div>
+    <div id="history" class="history-container"></div>
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+<script>
+let isRouletteRunning = false;
+let currentSpeed = 50;
+const maxSpeed = 200;
+const acceleration = 10;
+const history = [];
+
+function toggleRoulette() {
+    if (isRouletteRunning) {
+        stopRoulette();
+    } else {
+        startRoulette();
+    }
+}
+
+function startRoulette() {
+    isRouletteRunning = true;
+    spinRoulette();
+}
+
+function stopRoulette() {
+    isRouletteRunning = false;
+    updateHistory(); // 履歴を更新
+}
+
+function spinRoulette() {
+    const numberDisplay = document.getElementById('numberDisplay');
+    let count = 0;
+    const maxNumber = 75;
+
+    function spin() {
+        if (isRouletteRunning) {
+            count = generateUniqueNumber(); // 重複しないように生成
+            numberDisplay.textContent = count;
+
+            if (currentSpeed < maxSpeed) {
+                currentSpeed += acceleration;
+            }
+
+            setTimeout(spin, currentSpeed);
+        }
+    }
+
+    spin();
+}
+
+function generateUniqueNumber() {
+    let newNumber;
+    do {
+        newNumber = Math.floor(Math.random() * 75) + 1;
+    } while (history.includes(newNumber));
+
+    history.push(newNumber);
+    return newNumber;
+}
+
+function updateHistory() {
+    const historyContainer = document.getElementById('history');
+    const historyItem = document.createElement('div');
+    historyItem.classList.add('history-item');
+    historyItem.textContent = history[history.length - 1];
+    historyContainer.appendChild(historyItem);
+}
+
+//# sourceURL=userscript.js
+</script>
+</body>
+</html>
