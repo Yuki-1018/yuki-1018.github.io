@@ -2,17 +2,16 @@
 set -e
 
 # ==========================================
-# Yuki Linux Build Script (Minbase Strategy)
-# Target: Debian 13 (Trixie)
+# Yuki Linux Build Script (Trixie/SysVinit/Elogind)
 # Codename: Snowdrop / Version: 1.0
 # ==========================================
 
-# 1. 準備: 依存ツールの確認とディレクトリ初期化
+# 1. 準備
 echo "[*] Installing build dependencies..."
 sudo apt-get update
 sudo apt-get install -y live-build live-manual live-config doc-debian debootstrap squashfs-tools xorriso
 
-WORK_DIR="$HOME/yuki-linux-build"
+WORK_DIR="$HOME/yuki-trixie-sysv"
 echo "[*] Setting up work directory at $WORK_DIR..."
 
 if [ -d "$WORK_DIR" ]; then
@@ -22,13 +21,9 @@ mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 
 # 2. 基本設定 (lb config)
-# 【修正の核心】
-# --debootstrap-options "--variant=minbase":
-#    Debianの「標準システム」をインストールせず、極小の基礎のみ作る。
-#    これによりSystemdを要求するメタパッケージ(standard-system)が除外される。
-# --include:
-#    minbaseだとaptやカーネルすら入らないので、init関連と合わせて明示的に指定する。
-echo "[*] Configuring live-build (Minbase Mode)..."
+# --variant=minbase: 最小構成から開始
+# --include: 必須ツールと、依存解決の鍵となる 'elogind' を初期段階で含める
+echo "[*] Configuring live-build..."
 lb config \
     --distribution trixie \
     --debian-installer live \
@@ -41,51 +36,76 @@ lb config \
     --iso-volume "Yuki_Linux_1.0" \
     --bootappend-live "boot=live components quiet splash hostname=yukilinux" \
     --linux-packages "linux-image linux-headers" \
-    --debootstrap-options "--variant=minbase --include=apt,dpkg,sysvinit-core,sysv-rc,insserv,startpar,initscripts,orphan-sysvinit-scripts,linux-image-amd64,live-boot,whiptail,pciutils,usbutils,kbd --exclude=systemd-sysv,systemd"
+    --debootstrap-options "--variant=minbase --include=apt,dpkg,sysvinit-core,sysv-rc,elogind,libpam-elogind,linux-image-amd64,live-boot --exclude=systemd-sysv,systemd,libpam-systemd"
 
-# 3. パッケージリスト作成
-# minbaseなので、通常なら「あって当たり前」のコマンドも書く必要がある
+# 3. APT Preferences (Pinning) 設定
+# これが依存関係地獄を解決する鍵です。
+# systemd関連を禁止し、代わりにelogindやsysvinitを優先させます。
+mkdir -p config/archives
+cat <<EOF > config/archives/no-systemd.pref.chroot
+Package: systemd-sysv
+Pin: release *
+Pin-Priority: -1
+
+Package: systemd
+Pin: release *
+Pin-Priority: -1
+
+Package: libpam-systemd
+Pin: release *
+Pin-Priority: -1
+
+Package: sysvinit-core
+Pin: release *
+Pin-Priority: 1001
+
+Package: elogind
+Pin: release *
+Pin-Priority: 1001
+
+Package: libpam-elogind
+Pin: release *
+Pin-Priority: 1001
+EOF
+
+# インストール後のOSにもこの設定を引き継ぐ
+mkdir -p config/includes.chroot/etc/apt/preferences.d
+cp config/archives/no-systemd.pref.chroot config/includes.chroot/etc/apt/preferences.d/no-systemd.pref
+
+# 4. パッケージリスト作成
+# 依存関係エラーを防ぐため、systemdに強く依存するものは避け、代替品を選びます。
 mkdir -p config/package-lists
 
 cat <<EOF > config/package-lists/yuki-core.list.chroot
-# --- Init & Base System ---
+# --- Init System (SysV + Elogind) ---
 sysvinit-core
 sysv-rc
+orphan-sysvinit-scripts
 insserv
 startpar
 initscripts
-orphan-sysvinit-scripts
-# ブロック
-!systemd-sysv
-!systemd
+# Systemdのログイン管理機能の代わり
+elogind
+libpam-elogind
 
-# --- Kernel & Boot ---
+# --- Kernel & Base ---
 linux-image-amd64
 live-boot
-systemd-standalone-sysusers 
-# ↑これはsystemd本体ではなく、ユーザー管理用のごく小さなライブラリ。Trixieでは多くのツールが依存するため許容する(initには影響しない)
-
-# --- Basic Utils (Minimal) ---
 coreutils
 util-linux
 procps
 kmod
 e2fsprogs
+psmisc
+
+# --- Network (Low dependency) ---
+isc-dhcp-client
 iproute2
 net-tools
 iputils-ping
-isc-dhcp-client
-nano
-# 骨董品PC対応: マウス/キーボード認識用
-udev
-kbd
-
-# --- Network Manager ---
-# systemdなしで動く軽量なConnection Manager
+# connmanは依存が軽い
 connman
-connman-ui
-# WiFi GUI (GTKなし)
-ceni
+# Wi-Fiファームウェア
 firmware-linux-free
 
 # --- GUI Base ---
@@ -93,23 +113,32 @@ xserver-xorg-core
 xinit
 x11-xserver-utils
 x11-utils
+# Xorgの依存関係でsystemdが入らないよう、推奨パッケージはオフにしてあるが
+# policykitなどはelogindで満足させる
+
 # ドライバ
 xserver-xorg-video-vesa
 xserver-xorg-video-fbdev
 xserver-xorg-input-evdev
 xserver-xorg-input-libinput
 
-# --- User Apps ---
+# --- Apps ---
 evilwm
 xterm
+apt
+dpkg
 make
 binutils
 !build-essential
 !man-db
 !manpages
+
+# --- Misc for Antique Hardware ---
+kbd
+console-setup
 EOF
 
-# 4. ディレクトリ構造作成
+# 5. ディレクトリ構造作成
 echo "[*] Creating directory structure..."
 mkdir -p config/hooks/live
 mkdir -p config/includes.chroot/etc/skel
@@ -117,12 +146,11 @@ mkdir -p config/includes.chroot/etc/profile.d
 mkdir -p config/includes.chroot/etc/apt/apt.conf.d
 mkdir -p config/includes.chroot/root
 
-# 5. カスタマイズ設定
+# 6. カスタマイズ設定
 
-# --- フック: OS独自ブランド化 (Yuki Linux) ---
+# フック: OS独自ブランド化
 cat <<'EOF' > config/hooks/live/01-branding.hook.chroot
 #!/bin/sh
-# /etc/os-release の完全書き換え
 cat <<RELEASE > /etc/os-release
 PRETTY_NAME="Yuki Linux 1.0 (Codename: Snowdrop)"
 NAME="Yuki Linux"
@@ -136,70 +164,51 @@ SUPPORT_URL="http://localhost"
 BUG_REPORT_URL="http://localhost"
 RELEASE
 
-# /etc/issue (ログイン前表示)
-echo "Yuki Linux 1.0 (Snowdrop) - Minbase Edition \n \l" > /etc/issue
-echo "Yuki Linux" > /etc/issue.net
+echo "Yuki Linux 1.0 (Snowdrop) \n \l" > /etc/issue
 echo "yukilinux" > /etc/hostname
-
-# localhost設定
+# Hosts設定
 echo "127.0.0.1   localhost" > /etc/hosts
 echo "127.0.1.1   yukilinux" >> /etc/hosts
-
-# lsb-release (念のため)
-echo "DISTRIB_ID=YukiLinux" > /etc/lsb-release
-echo "DISTRIB_RELEASE=1.0" >> /etc/lsb-release
-echo "DISTRIB_CODENAME=snowdrop" >> /etc/lsb-release
-echo "DISTRIB_DESCRIPTION=\"Yuki Linux 1.0\"" >> /etc/lsb-release
 EOF
 chmod +x config/hooks/live/01-branding.hook.chroot
 
-# --- フック: クリーンアップ ---
+# フック: クリーンアップ
 cat <<'EOF' > config/hooks/live/99-clean.hook.chroot
 #!/bin/sh
 rm -rf /usr/share/doc/*
 rm -rf /usr/share/man/*
-# 英語以外削除
 find /usr/share/locale -maxdepth 1 -mindepth 1 -type d | grep -v "en" | xargs rm -rf
-# GTKテーマ等のゴミ削除
-rm -rf /usr/share/themes/*
+rm -rf /usr/share/backgrounds/*
 rm -rf /usr/share/icons/Adwaita
 EOF
 chmod +x config/hooks/live/99-clean.hook.chroot
 
-# --- APT設定 ---
+# APT設定
 echo 'APT::Install-Recommends "0";' > config/includes.chroot/etc/apt/apt.conf.d/01norecommends
 
-# --- GUI設定 (.xinitrc) ---
+# GUI設定 (.xinitrc)
 cat <<'EOF' > config/includes.chroot/etc/skel/.xinitrc
 #!/bin/sh
-# 骨董品PC向け: マウス加速無効
 xset m 0 0
-# 画面真っ黒
 xsetroot -solid black
-# タイトルバーさえない極限WM
 exec evilwm &
-# メインターミナル
 exec xterm -geometry 80x24+0+0 -bg black -fg white
 EOF
 cp config/includes.chroot/etc/skel/.xinitrc config/includes.chroot/root/.xinitrc
 
-# --- 自動起動 (startx) ---
+# 自動起動スクリプト
 cat <<'EOF' > config/includes.chroot/etc/profile.d/startx.sh
-# TTY1ログイン時のみstartx
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ] && [ -z "$SSH_CONNECTION" ]; then
     echo "Welcome to Yuki Linux (Snowdrop)."
     startx
 fi
 EOF
 
-# 6. ビルド実行
+# 7. ビルド実行
 echo "[*] Starting build process..."
-# minbaseはダウンロード数が少ないので速いですが、初期構築に慎重になります
 sudo lb build
 
 echo "=========================================="
 echo "Build Complete!"
 echo "ISO Location: $WORK_DIR/live-image-amd64.hybrid.iso"
-echo "OS Name: Yuki Linux 1.0 (Snowdrop)"
-echo "Base: Debian Trixie (Minbase/SysVinit)"
 echo "=========================================="
