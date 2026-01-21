@@ -2,27 +2,27 @@
 set -e
 
 # ==========================================
-# Yuki Linux Build Script (Depency Fix)
-# Target: Debian 13 (Trixie)
+# Yuki Linux Build Script (Final Architecture)
+# Target: Debian 13 (Trixie) - Pure SysVinit
 # ==========================================
 
-# 1. 前準備
+# 1. 準備
 echo "[*] Installing build dependencies..."
 sudo apt-get update
 sudo apt-get install -y live-build live-manual live-config doc-debian debootstrap squashfs-tools xorriso
 
-# 作業ディレクトリ
-WORK_DIR="$HOME/yuki-trixie-fix"
+WORK_DIR="$HOME/yuki-trixie-final"
 echo "[*] Setting up work directory at $WORK_DIR..."
 
 if [ -d "$WORK_DIR" ]; then
-    echo "Cleaning up previous build files..."
     sudo rm -rf "$WORK_DIR"
 fi
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
 
-# 2. 基本設定 (Trixie向け)
+# 2. 基本設定 (lb config)
+# 【最重要修正点】
+# --debootstrap-options: ベースシステム構築時に sysvinit-core を入れ、systemd-sysv を除外する
 echo "[*] Configuring live-build..."
 lb config \
     --distribution trixie \
@@ -35,47 +35,21 @@ lb config \
     --cache false \
     --iso-volume "Yuki_Linux_Trixie" \
     --bootappend-live "boot=live components quiet splash hostname=yukilinux" \
-    --linux-packages "linux-image linux-headers"
+    --linux-packages "linux-image linux-headers" \
+    --debootstrap-options "--include=sysvinit-core --exclude=systemd-sysv,systemd"
 
-# 3. APT Pinning 設定 (これが重要)
-# ビルドプロセス中にSystemd-sysvがインストールされるのを防ぐ設定
-mkdir -p config/archives
-cat <<EOF > config/archives/no-systemd.pref.chroot
-Package: systemd-sysv
-Pin: release *
-Pin-Priority: -1
-
-Package: systemd
-Pin: release *
-Pin-Priority: -1
-
-Package: sysvinit-core
-Pin: release *
-Pin-Priority: 1001
-EOF
-
-# インストール後のシステムにも同じ設定を残す
-mkdir -p config/includes.chroot/etc/apt/preferences.d
-cp config/archives/no-systemd.pref.chroot config/includes.chroot/etc/apt/preferences.d/no-systemd.pref
-
-# 4. パッケージリストの作成 (修正版)
-# 細かすぎる指定(sysv-rc等)や競合するもの(orphan-*)を削除し、
-# sysvinit-core一本に絞って依存解決をAPTに任せる
+# 3. パッケージリスト作成
+# ここではシンプルなリストにする（競合回避のため）
 mkdir -p config/package-lists
 
 cat <<EOF > config/package-lists/yuki-core.list.chroot
-# --- Core System (SysVinit) ---
+# --- Init System ---
+# debootstrapで既に入っているが、念のため指定
 sysvinit-core
-# systemd系の明示的な除外
+sysv-rc
+# 以下の除外記述は念のため残すが、debootstrap除外が効いていればConflictしない
 !systemd-sysv
 !systemd
-
-# --- Base Utils ---
-e2fsprogs
-coreutils
-util-linux
-procps
-kmod
 
 # --- Network ---
 isc-dhcp-client
@@ -84,16 +58,13 @@ net-tools
 iputils-ping
 firmware-linux-free
 network-manager
-# network-managerはsystemdを推奨するため、依存でsystemdが入ろうとするのを防ぐには
-# 以下のパッケージでsysv対応させる必要がある場合があるが、
-# Trixieではパッケージ名が変わっている可能性があるため、まずは単純化する。
 
 # --- GUI Base ---
 xserver-xorg-core
 xinit
 x11-xserver-utils
 x11-utils
-# ドライバ
+# 骨董品PC向けドライバ
 xserver-xorg-video-vesa
 xserver-xorg-video-fbdev
 xserver-xorg-input-evdev
@@ -111,7 +82,7 @@ binutils
 !manpages
 EOF
 
-# 5. ディレクトリ作成
+# 4. ディレクトリ作成
 echo "[*] Creating directory structure..."
 mkdir -p config/hooks/live
 mkdir -p config/includes.chroot/etc/skel
@@ -119,9 +90,9 @@ mkdir -p config/includes.chroot/etc/profile.d
 mkdir -p config/includes.chroot/etc/apt/apt.conf.d
 mkdir -p config/includes.chroot/root
 
-# 6. 各種設定ファイルの作成
+# 5. フック設定
 
-# フック: OS名
+# OS名変更
 cat <<'EOF' > config/hooks/live/01-branding.hook.chroot
 #!/bin/sh
 cat <<RELEASE > /etc/os-release
@@ -135,13 +106,12 @@ HOME_URL="http://localhost"
 SUPPORT_URL="http://localhost"
 BUG_REPORT_URL="http://localhost"
 RELEASE
-
-echo "Yuki Linux (SysV) \n \l" > /etc/issue
+echo "Yuki Linux (SysV)" > /etc/issue
 echo "yukilinux" > /etc/hostname
 EOF
 chmod +x config/hooks/live/01-branding.hook.chroot
 
-# フック: クリーンアップ
+# 掃除
 cat <<'EOF' > config/hooks/live/99-clean.hook.chroot
 #!/bin/sh
 rm -rf /usr/share/doc/*
@@ -154,7 +124,6 @@ chmod +x config/hooks/live/99-clean.hook.chroot
 
 # APT設定
 echo 'APT::Install-Recommends "0";' > config/includes.chroot/etc/apt/apt.conf.d/01norecommends
-echo 'APT::Install-Suggests "0";' >> config/includes.chroot/etc/apt/apt.conf.d/01norecommends
 
 # .xinitrc
 cat <<'EOF' > config/includes.chroot/etc/skel/.xinitrc
@@ -174,9 +143,8 @@ if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ] && [ -z "$SSH_CONNECTION" ]; 
 fi
 EOF
 
-# 7. ビルド実行
+# 6. ビルド実行
 echo "[*] Starting build process..."
-# デバッグ情報を少し出すためにverboseを追加しても良い
 sudo lb build
 
 echo "=========================================="
